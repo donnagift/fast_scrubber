@@ -14,7 +14,7 @@ https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/set_environment_var
 	labelsTr are mask- the ground truth images 
 	imagesTs- are the testing data set, the origs 
 
-## Run model
+#3 Run model
 
 # check data
 nnUNetv2_plan_and_preprocess -d DATASET_ID --verify_dataset_integrity >> e.g. nnUNetv2_plan_and_preprocess -d 500 --verify_dataset_integrity
@@ -27,9 +27,6 @@ nnUNetv2_train DATASET_NAME_OR_ID UNET_CONFIGURATION FOLD --npz >> e.g. nnUNetv2
 # choose best model
 nnUNetv2_find_best_configuration DATASET_NAME_OR_ID -c CONFIGURATIONS >> e.g. nnUNetv2_find_best_configuration 500 -c 2d 3d_lowres 3_fullres
 
-# run inference for 2D
-nnUNetv2_predict -i INPUT_FOLDER -o OUTPUT_FOLDER -d DATASET_NAME_OR_ID -c CONFIGURATION --save_probabilities >> nnUNetv2_predict -i <nnunet_path>/nnUNet_raw/<dataset_path>/imagesTs/ -o <nnunet_path>/nnUNet_results/inference -d 500 -c 2d --save_probabilities
-
-# run inference for 3D- this one!
+# run inference for 3D - is the best!
  nnUNetv2_predict -i /host/percy/local_raid/donna/7T_NNunet/nnUNet_raw/Dataset500_Segmentation/imagesTs -o /host/percy/local_raid/donna/7T_NNunet/nnUNet_results/Dataset500_Segmentation/nnUNetTrainer__nnUNetPlans__3d_fullres/inference -d 500 -c 3d_fullres --save_probabilities
 
