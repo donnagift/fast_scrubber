@@ -38,12 +38,12 @@ nnUNetv2_train DATASET_NAME_OR_ID UNET_CONFIGURATION FOLD --npz
 > Example:
 
 ```bash
-nnUNetv2_train 500 2d 0 --npz   
+TORCHDYNAMO_DISABLE=1 OMP_NUM_THREADS=1 nnUNetv2_train 500 2d 0 --npz   
 ```
 > or
 
 ```bash
-nnUNetv2_train 500 3d_fullres 0 --npz –device cuda
+TORCHDYNAMO_DISABLE=1 OMP_NUM_THREADS=1 nnUNetv2_train 500 3d_fullres 0 --npz –device cuda
 ```
 
 > run it for 5 folds (0-4), and with different configurations (2d, 3d_lowres, 3d_fullres)- 0
