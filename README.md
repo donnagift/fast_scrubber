@@ -1,3 +1,16 @@
+<p align="center">
+  <img src="Fastscrubber_logo.svg" width="180">
+</p>
+
+<h1 align="center">fast_scrubber</h1>
+
+<p align="center">
+ Automated surface QC. Goodbye to all-day manual QC!
+</p>
+
+
+
+
 # nnUNet for High-Accuracy Brain Mask Prediction
 
 This repository contains the implementation of nnUNet used to train a model for accurately predicting brain masks. The primary motivation for developing this model is to facilitate the removal of meninges from high-resolution T1-weighted images acquired using a 7T MRI protocol (0.5 × 0.5 × 0.5 mm³).
