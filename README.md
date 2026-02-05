@@ -2,7 +2,7 @@
   <img src="fast_scrubber_logo.png" width="180">
 </p>
 
-<h1 align="center">fast_scrubber</h1>
+<h1 align="center"><em>fast_scrubber</em></h1>
 
 <p align="center">
  Automated surface QC. Goodbye to all-day manual QC!
