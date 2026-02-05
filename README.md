@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Fastscrubber_logo.svg" width="180">
+  <img src="fast_scrubber_logo.png" width="180">
 </p>
 
 <h1 align="center">fast_scrubber</h1>
