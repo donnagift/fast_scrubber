@@ -59,6 +59,11 @@ FastSurfer v2.4.2 must be run before running this pipeline.See the FastSurfer do
 /path/to/fastsurfer_directory/ \
 /path/to/fast_scrubber_7T/nnUNet_results/Dataset500_Segmentation/nnUNetTrainer__nnUNetPlans__3d_fullres/inference
 ```
+## Some example outputs
+<p align="center">
+  <img src="https://github.com/donnagift/fast_scrubber/blob/main/images/fast_scrubber_applications.svg" width="600">
+</p>
+
 
 ## To train your own model
 For detailed instructions on training a custom model, please consult the nnUNet documentation. In summary, you will need to: 
