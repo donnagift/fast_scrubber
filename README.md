@@ -124,24 +124,6 @@ nnUNetv2_find_best_configuration DATASET_NAME_OR_ID -c CONFIGURATIONS
 nnUNetv2_find_best_configuration 500 -c 2d 3d_lowres 3_fullres
 ```
 
-### Run 2D inference
-
-```bash
-# Run 2D inference
-nnUNetv2_predict \
--i INPUT_FOLDER \  # Path to the folder containing the input images
--o OUTPUT_FOLDER \  # Path to the folder where the output predictions will be saved
--d DATASET_NAME_OR_ID \  # Dataset ID or name
--c CONFIGURATION \  # Configuration to use (e.g., 2d, 3d_fullres)
---save_probabilities  # Option to save the probabilities
-
-# Example:
-nnUNetv2_predict \
--i <nnunet_path>/nnUNet_raw/<dataset_path>/imagesTs/ \
--o <nnunet_path>/nnUNet_results/inference \  
--d 500 -c 2d --save_probabilities  
-```
-
 ## Run 3D inference | *best model*
 
 ```bash
@@ -152,7 +134,7 @@ nnUNetv2_predict \
 ```
 
 ## Citation
-Cabalo DG, RodrigueZ R, DeKraker J, Kebets V & Bernhardt B.fast_scrubber. Retrieved from osf.io/x95g7
+Cabalo DG, Rodriguez R, DeKraker J, Kebets V & Bernhardt B.fast_scrubber. Retrieved from osf.io/x95g7
 
 For the segmentation method used 
 Isensee, F., Jaeger, P. F., Kohl, S. A., Petersen, J., & Maier-Hein, K. H. (2021). nnU-Net: a self-configuring 
