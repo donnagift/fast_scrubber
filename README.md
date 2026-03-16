@@ -13,7 +13,7 @@
 ## The problem
 
 Ultra-high-field MRI preprocessing remains challenging. Standard pipelines can have difficulty accurately segmenting meninges, blood vessels, and adjacent non-brain tissues, leading to systematic errors and extensive manual quality control (QC) of cortical surfaces.
-In our 7T dataset, surfaces were generated using FastSurfer, and we observed typical inclusion of meninges, vessels, tegmentum, and sinuses. These regions must be manually corrected and the surfaces reprocessed, a step that in our experience can take up to a full day per subject.
+In our 7T dataset, surfaces were generated using FastSurfer, and we observed typical inclusion of meninges, vessels, tentorium, and sinuses. These regions must be manually corrected and the surfaces reprocessed, a step that in our experience can take up to a full day per subject.
 
 ## The proposed solution
 
@@ -37,13 +37,31 @@ We provide these training weights ready to use to predict brain masks, automatic
 
 ## Installation
 
+A docker version is currently under preparation. In the meantime, you can run the software locally by following these steps: 
 
+1. Download the model weights from
+   ```
+   https://osf.io/x95g7
+   ```
+   
+2. Create the Conda enviroment.
+   
+```
+conda env create -f fast_scrubber_env.yml
+```
+   
 ## Usage
-Prerequisite:
-FastSurfer v2.4.2 must be run before running this pipeline.See the FastSurfer documentation for installation and usage: https://deep-mi.org/research/fastsurfer/ 
 
-1. Convert images to predict and save them to `imagesTs` folder
-   You can use the `convert_mgz_to_nii.sh` script. Before running it, update the paths in the script:
+Prerequisite:
+FastSurfer v2.4.2 must be run before executing this pipeline.See the FastSurfer documentation for installation and usage: https://deep-mi.org/research/fastsurfer/ 
+
+1. Prepare Input Images
+
+   From Fastsurfer outputs, convert images to be predicted (`i.e. orig.mgz`) to NifTi format following the `DataSet500_Segmentation` naming convention and save them to `imagesTs` directory
+
+    `mri_convert sub-PNC018_ses-a1.mgz sub-PNC018ses-a1_0000.nii.gz`
+   
+   You can also use the `convert_mgz_to_nii.sh` script to do this. Before running it, update the paths in the script:
 
 ```bash
  fastsurfer_dir=/path/to/fastsurfer_directory/
@@ -52,13 +70,19 @@ FastSurfer v2.4.2 must be run before running this pipeline.See the FastSurfer do
 
 2. Predict masks using fast_scrubber
 
-3. Apply the fast_scrubber generated mask using `run_fastscrubber.sh`. This scripts internally calls FastSurfer v2.4.2 `recon-surf.sh`, so FastSurfer must already be installed and configured. 
+```
+   conda activate fast_scrubber_env
+   nnUNetv2_predict -i /path/to/fastscrubber/nnunet_raw/imagesTs/ -o /path/to/fastscrubber//nnUNet_results/Dataset500_Segmentation/nnUNetTrainer__nnUNetPlans__3d_fullres/inference/ -d 500 -c 3d_fullres --save_probabilities
+```
+
+4. Apply the fast_scrubber-generated mask using `run_fastscrubber.sh`. This scripts internally calls FastSurfer v2.4.2 `recon-surf.sh`, so FastSurfer must already be installed and configured. 
    
 ```bash
 ./run_fastscrubber.sh sub-<SUBJECT_ID> ses-<SESSION_ID> \
 /path/to/fastsurfer_directory/ \
 /path/to/fast_scrubber_7T/nnUNet_results/Dataset500_Segmentation/nnUNetTrainer__nnUNetPlans__3d_fullres/inference
 ```
+
 ## Some example outputs
 <p align="center">
   <img src="https://github.com/donnagift/fast_scrubber/blob/main/images/fast_scrubber_applications.svg" width="600">
@@ -136,6 +160,6 @@ nnUNetv2_find_best_configuration 500 -c 2d 3d_lowres 3_fullres
 ## Citation
 Cabalo DG, Rodriguez R, DeKraker J, Kebets V & Bernhardt B.fast_scrubber. Retrieved from osf.io/x95g7
 
-For the segmentation method used 
+For the segmentation method used: 
 Isensee, F., Jaeger, P. F., Kohl, S. A., Petersen, J., & Maier-Hein, K. H. (2021). nnU-Net: a self-configuring 
 method for deep learning-based biomedical image segmentation. Nature methods, 18(2), 203-211.
