@@ -1,64 +1,40 @@
-# Use an official NVIDIA CUDA base image with Python
-FROM nvidia/cuda:12.2.0-runtime-ubuntu20.04
+# Base: Miniconda with CUDA 12.4 (matches training environment)
+FROM continuumio/miniconda3:latest
 
-# Use an official NVIDIA CUDA base image with Python
-FROM nvidia/cuda:12.2.0-runtime-ubuntu20.04 AS base
+LABEL maintainer="fast_scrubber"
+LABEL description="nnUNetv2-based 7T MRI segmentation tool"
 
-# Install Python
-RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* 
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        wget \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set the working directory in the container
-WORKDIR /app
+# Install CUDA 12.4 runtime (required by torch+cu124)
+RUN conda install -y -c nvidia/label/cuda-12.4.0 cuda-toolkit && \
+    conda clean -afy
 
-# Install system dependencies
-RUN apt-get update && \
-    apt-get install -y git && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Create conda environment from yml
+COPY environment.yml .
+RUN conda env create -f environment.yml && conda clean -afy
 
-# Install torch via pip3
-RUN pip3 install torch torchvision torchaudio
+# Make the conda env the default shell for subsequent RUN commands
+SHELL ["conda", "run", "-n", "fast_scrubber_env", "/bin/bash", "-c"]
 
-# Install nnU-Net as standardized baseline, out-of-the-box segmentation algorithm or for running inference with pretrained models
-RUN pip install nnunetv2
+# Copy tool
+WORKDIR /opt/fast_scrubber
+COPY fastscrubber.py .
 
-# Install hiddenlayer (optional)
-RUN pip install --upgrade git+https://github.com/FabianIsensee/hiddenlayer.git
+# Download model weights from OSF at build time
+# OSF project: https://osf.io/x95g7
+RUN pip install osfclient && \
+    osf -p x95g7 clone /tmp/osf_weights && \
+    mkdir -p /opt/fast_scrubber/weights && \
+    cp -r /tmp/osf_weights/x95g7/osfstorage/nnUNet_results/Dataset500_Segmentation \
+          /opt/fast_scrubber/weights/ && \
+    rm -rf /tmp/osf_weights
 
-# Clone the nnUNet repository
-RUN git clone https://github.com/MIC-DKFZ/nnUNet.git /app/nnUNet
-
-# Set the working directory to the nnUNet directory
-WORKDIR /app/nnUNet
-
-# Copy the pyproject.toml file into the container
-COPY nnUNet/pyproject.toml .
-
-# Install the rest of the Python dependencies from pyproject.toml
-RUN pip install --no-cache-dir .
-
-# Set environment variables for nnU-Net
-# see: https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/setting_up_paths.md
-ENV nnUNet_raw_data_base="/app/nnUNet_raw_data_base"
-ENV nnUNet_preprocessed="/app/nnUNet_preprocessed"
-ENV RESULTS_FOLDER="/app/nnUNet_trained_models"
-ENV nnUNet_n_proc_DA=6
-
-# Create directories for nnU-Net data
-RUN mkdir -p $nnUNet_raw_data_base $nnUNet_preprocessed $RESULTS_FOLDER
-
-# Install conda and create a virtual environment
-RUN apt-get update && apt-get install -y wget && \
-    wget -O ~/miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
-    bash ~/miniconda.sh -b -p ~/miniconda && \
-    rm ~/miniconda.sh && \
-    ~/miniconda/bin/conda create -y -n nnUNet_conda python=3.9 && \
-    ~/miniconda/bin/conda init && \
-    ~/miniconda/bin/conda create -y -n nnUNet_conda python=3.9
-
-ENV PATH="/root/miniconda/envs/nnUNet_conda/bin:$PATH"
-
-ENTRYPOINT ["bash", "-c", "source ~/miniconda/bin/activate nnUNet_conda && exec \"$@\"", "--"]
+# Entrypoint — activate conda env and run the tool
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "fast_scrubber_env", \
+            "python", "/opt/fast_scrubber/fastscrubber.py"]

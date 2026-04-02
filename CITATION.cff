@@ -1,0 +1,50 @@
+# schema: https://github.com/citation-file-format/citation-file-format/blob/main/schema-guide.md
+
+cff-version: 1.2.0
+
+title: fast_scrubber
+
+license: GPL-3.0
+
+type: "software"
+
+repository-code: https://github.com/donnagift/fast_scrubber
+
+message: This repository contains the implementation of nnUNet used to train a model for accurately predicting a brain mask (removes all meninges)
+
+identifiers:
+  - description: "The concept DOI of the pre-release version."
+    type: doi
+    value: 10.0000/zenodo.0000000s
+  - osf: https://osf.io/x95g7
+
+keywords:
+  - nnUNET
+  - brain mask
+  - neuroimaging
+  - MRI
+  - 7T
+  - open data
+  - ultra-high-field
+  - NIFTI
+  - sgmentation
+
+authors:
+
+  - family-names: Cabalo
+    given-names: Donna Gift
+    orcid: https://orcid.org/0000-0001-9568-1723
+
+  - family-names: R. Cruces
+    given-names: Raul
+    orcid: https://orcid.org/0000-0001-8002-0877
+
+  - family-names: Jordan
+    given-names: DeKraker
+
+  - family-names: Kebets
+    given-names: Valeria
+
+  - family-names: Bernhardt
+    given-names: Boris
+    orcid: https://orcid.org/0000-0001-9256-6041

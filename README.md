@@ -1,14 +1,16 @@
-<p align="center">
-  <img src="fast_scrubber_logo_color.png" width="180">
-</p>
 
-<h1 align="center" style="font-size: 3rem;"><em>fast_scrubber</em></h1>
+<img src="./images/fast_scrubber_logo_color.png" width=20% height=20% align=right>
 
-<h2 align="center">
-  Automated surface QC. Goodbye to all-day manual QC!
-</h2>
+# `fast_scrubber`: Improving brain MRI segmentation at 3T and 7T
 
-# fast_scrubber: Improving brain MRI segmentation at 3T and 7T
+## Automated surface QC. Goodbye to all-day manual QC!
+
+[![Version](https://img.shields.io/github/v/tag/donnagift/fast_scrubber)](https://github.com/donnagift/fast_scrubber)
+[![Docker Image Version](https://img.shields.io/docker/v/micalab/fast_scrubber?color=blue&label=docker%20version)](https://hub.docker.com/r/micalab/fast_scrubber)
+[![Docker Pulls](https://img.shields.io/docker/pulls/micalab/fast_scrubber)](https://hub.docker.com/r/micalab/fast_scrubber)
+[![GitHub issues](https://img.shields.io/github/issues/donnagift/fast_scrubber?color=brightgreen)](https://github.com/donnagift/fast_scrubber/issues)
+[![GitHub stars](https://img.shields.io/github/stars/donnagift/fast_scrubber.svg?style=flat&label=%E2%AD%90%EF%B8%8F%20stars&color=brightgreen)](https://github.com/donnagift/fast_scrubber/stargazers)
+
 
 ## The problem
 
@@ -85,7 +87,7 @@ FastSurfer v2.4.2 must be run before executing this pipeline.See the FastSurfer 
 
 ## Some example outputs
 <p align="center">
-  <img src="https://github.com/donnagift/fast_scrubber/blob/main/images/fast_scrubber_applications.svg" width="600">
+  <img src="./images/fast_scrubber_applications.svg" width="600">
 </p>
 
 
