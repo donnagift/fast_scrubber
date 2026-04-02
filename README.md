@@ -87,7 +87,7 @@ FastSurfer v2.4.2 must be run before executing this pipeline.See the FastSurfer 
 
 ## Some example outputs
 <p align="center">
-  <img src="./images/fast_scrubber_applications.svg" width="600">
+  <img src="./images/fast_scrubber_applications.png" width="600">
 </p>
 
 
