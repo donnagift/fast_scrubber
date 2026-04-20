@@ -49,7 +49,8 @@ A docker version is currently under preparation. In the meantime, you can run th
 2. Create the Conda enviroment.
    
 ```
-conda env create -f fast_scrubber_env.yml
+conda env create -f environment.yml
+
 ```
    
 ## Usage
