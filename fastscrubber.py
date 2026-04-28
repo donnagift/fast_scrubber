@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 fast_scrubber: nnUNetv2-based segmentation inference tool.
 
@@ -25,7 +26,7 @@ import numpy as np
 # --- Internal constants ------------------------------------------------------
 
 SCRIPT_DIR  = Path(__file__).parent.resolve()
-WEIGHTS_DIR = SCRIPT_DIR / "weights"
+WEIGHTS_DIR = SCRIPT_DIR / "weights/fast_scrubber/nnUNet_results"
 
 DATASET_ID   = "500"
 DATASET_NAME = "Dataset500_Segmentation"
