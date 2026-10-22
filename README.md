@@ -39,51 +39,111 @@ We provide these training weights ready to use to predict brain masks, automatic
 
 ## Installation
 
-A docker version is currently under preparation. In the meantime, you can run the software locally by following these steps: 
+fast_scrubber runs from a conda environment, a Docker image or an Apptainer/Singularity image. All three run the same `fastscrubber.py` with the same pinned packages (PyTorch 2.4.1 with CUDA 12.4, nnU-Net 2.5.1) on Linux x86_64, on a CPU or an NVIDIA GPU. A GPU host needs only an NVIDIA driver: the CUDA runtime ships with the PyTorch wheels.
 
-1. Download the model weights from
-   ```
-   https://osf.io/x95g7
-   ```
-   
-2. Create the Conda enviroment.
-   
-```
-conda env create -f environment.yml
+### Option 1: Conda environment
 
+```bash
+PYTHONNOUSERSITE=1 conda env create -f environment.yml
+conda activate fastscrubber_env
+python download_weights.py
 ```
-   
+
+`download_weights.py` fetches the model from OSF (https://osf.io/x95g7; dataset.json, plans.json and the five `checkpoint_final.pth`, ~1.2 GB) into `weights/`, checking each file's SHA-256. `PYTHONNOUSERSITE=1` stops packages in `~/.local` from being taken as already installed while the environment is created.
+
+To keep the weights somewhere else (for example, shared between installs), use `python download_weights.py --dest /path/to/weights`. Then pass `--weights /path/to/weights/fast_scrubber/nnUNet_results` to `fastscrubber.py`, or set `FASTSCRUBBER_WEIGHTS` to that path.
+
+### Option 2: Docker
+
+```bash
+docker build -t fast_scrubber .
+```
+
+The weights are downloaded into the image at build time.
+
+### Option 3: Apptainer / Singularity
+
+Build the image from the Docker image:
+
+```bash
+apptainer build fast_scrubber.sif docker-daemon://fast_scrubber:latest
+```
+
+`singularity build` works the same way.
+
 ## Usage
 
 Prerequisite:
 FastSurfer v2.4.2 must be run before executing this pipeline.See the FastSurfer documentation for installation and usage: https://deep-mi.org/research/fastsurfer/ 
 
-1. Prepare Input Images
-
-   From Fastsurfer outputs, convert images to be predicted (`i.e. orig.mgz`) to NifTi format following the `DataSet500_Segmentation` naming convention and save them to `imagesTs` directory
-
-    `mri_convert sub-PNC018_ses-a1.mgz sub-PNC018ses-a1_0000.nii.gz`
-   
-   You can also use the `convert_mgz_to_nii.sh` script to do this. Before running it, update the paths in the script:
+1. Predict the brain mask from FastSurfer's `mri/orig.mgz`: give the input image and the output mask.
 
 ```bash
- fastsurfer_dir=/path/to/fastsurfer_directory/
- imagesTs=/path/to/fastscrubber/nnunet_raw/imagesTs/
+fastscrubber.py INPUT OUTPUT [options]
 ```
 
-2. Predict masks using fast_scrubber
+   You can pass the `.mgz` directly; no FreeSurfer or `mri_convert` is needed. The mask (0/1) is written to `OUTPUT`, on the same voxel grid as the input. Its extension picks the format: `.nii.gz`, `.nii` or `.mgz`. The output directory is created if needed.
 
-```
-   conda activate fast_scrubber_env
-   nnUNetv2_predict -i /path/to/fastscrubber/nnunet_raw/imagesTs/ -o /path/to/fastscrubber//nnUNet_results/Dataset500_Segmentation/nnUNetTrainer__nnUNetPlans__3d_fullres/inference/ -d 500 -c 3d_fullres --save_probabilities
+```bash
+# conda environment
+python fastscrubber.py /path/to/fastsurfer/sub-01_ses-01/mri/orig.mgz /path/to/output/sub-01_ses-01.nii.gz
+
+# Docker (uses a GPU when given --gpus all, otherwise the CPU)
+docker run --rm --gpus all --user "$(id -u):$(id -g)" -v /path/to/data:/path/to/data fast_scrubber \
+    /path/to/data/fastsurfer/sub-01_ses-01/mri/orig.mgz /path/to/data/output/sub-01_ses-01.nii.gz
+
+# Apptainer / Singularity (uses a GPU when given --nv, otherwise the CPU)
+apptainer run --nv -B /path/to/data fast_scrubber.sif \
+    /path/to/data/fastsurfer/sub-01_ses-01/mri/orig.mgz /path/to/data/output/sub-01_ses-01.nii.gz
 ```
 
-4. Apply the fast_scrubber-generated mask using `run_fastscrubber.sh`. This scripts internally calls FastSurfer v2.4.2 `recon-surf.sh`, so FastSurfer must already be installed and configured. 
+   Inside the container, the tool is on `PATH`: `docker run -it --entrypoint bash fast_scrubber`, or `apptainer exec fast_scrubber.sif fastscrubber.py INPUT OUTPUT`.
+
+   From Python (e.g. another workflow), call the same function the command line uses:
+
+```python
+from fastscrubber import scrub
+scrub("orig.mgz", "sub-01_ses-01.nii.gz", device="cpu", num_cpus=8)
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `INPUT` | required | FastSurfer's `mri/orig.mgz`, or a NIfTI (`.nii.gz`, `.nii`) conversion of it |
+| `OUTPUT` | required | Mask to write (`.nii.gz`, `.nii` or `.mgz`) |
+| `--device` | `auto` | `auto` (a GPU if one is visible, else the CPU), `cuda`, `cpu` or `mps` (Apple Silicon) |
+| `--num_cpus` | available CPUs − 2 | CPU threads, for CPU inference |
+| `--folds` | `0 1 2 3 4` | Folds of the 5-fold ensemble to use |
+| `--disable_tta` | off | Skip test-time mirroring: ~8× faster, slightly less accurate |
+| `--save_probabilities` | off | Also save the softmax maps, to `<OUTPUT without extension>_probabilities.npz` |
+| `--weights` | `$FASTSCRUBBER_WEIGHTS`, else `weights/fast_scrubber/nnUNet_results` | Model location |
+
+   Runtime for a 0.8 mm 3T `orig.mgz` with the default full ensemble (5 folds with test-time mirroring):
+   - **GPU:** 17 min on an RTX 2060 SUPER, peaking at 3 GB of GPU memory.
+   - **CPU:** many hours (8 h 51 min with nnUNetv2_predict's 8 threads).
+
+   For quick checks, use `--folds 0 --disable_tta`, which is ~40× less work: ~9 min on 32 CPU threads.
+
+   Notes:
+   - Docker runs as root unless given `--user "$(id -u):$(id -g)"`, so outputs would otherwise be owned by root.
+   - With `apptainer run --containall`, bind a scratch directory to `/tmp` (`-B /scratch:/tmp`): the tool keeps its temporary files there.
+   - The model was trained on FastSurfer-conformed images (LIA voxel order). The tool warns when an input is not in that orientation; raw scanner T1w images are not a supported input.
+
+2. Apply the fast_scrubber-generated mask using `run_fastscrubber.sh`. This scripts internally calls FastSurfer v2.4.2 `recon-surf.sh`, so FastSurfer must already be installed and configured. It expects the mask at `<inference_dir>/sub-<SUBJECT_ID>_ses-<SESSION_ID>.nii.gz`, so name the output of step 1 that way.
    
 ```bash
 ./run_fastscrubber.sh sub-<SUBJECT_ID> ses-<SESSION_ID> \
 /path/to/fastsurfer_directory/ \
-/path/to/fast_scrubber_7T/nnUNet_results/Dataset500_Segmentation/nnUNetTrainer__nnUNetPlans__3d_fullres/inference
+/path/to/inference_dir
+```
+
+## Testing
+
+- `.github/workflows/ci.yml` runs on every pull request. It builds the conda environment, the Docker image and the Apptainer image, and runs `fastscrubber.py` through each on a small image made from a public BIDS T1w (OpenNeuro ds000001): from the command line, inside the containers, and as the Python function `scrub()`. Every mask is checked with `tests/check_mask.py`.
+- `.github/workflows/bids-ci.yml` runs `tests/bids_ci_test.sh` on the lab runner, using the lab's BIDS_CI dataset (`/data/mica3/BIDS_CI/rawdata`). For each subject it conforms the T1w with FastSurfer 2.4.2's own `conform.py`, which reproduces FastSurfer's `orig.mgz` exactly. It then runs `fastscrubber.py` from the environment, Docker and Apptainer, and checks that every mask is valid and that the runtimes agree. You can also run the script by hand:
+
+```bash
+FASTSCRUBBER_PYTHON=$(which python) FASTSCRUBBER_WEIGHTS=$PWD/weights/fast_scrubber/nnUNet_results \
+FASTSCRUBBER_DOCKER=fast_scrubber FASTSCRUBBER_SIF=fast_scrubber.sif ./tests/bids_ci_test.sh
 ```
 
 ## Some example outputs
