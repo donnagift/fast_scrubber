@@ -1,34 +1,55 @@
 name: fastscrubber_env
+# conda-forge only: no Anaconda "defaults" Terms-of-Service prompt, and the
+# pytorch conda channel is not needed (torch comes from the wheels below).
 channels:
-  - pytorch
-  - defaults
+  - conda-forge
+  - nodefaults
+# Keep packages in ~/.local from shadowing the env's own once it is activated.
+# Create the env with the same setting, or pip skips anything ~/.local holds:
+#   PYTHONNOUSERSITE=1 conda env create -f environment.yml
+variables:
+  PYTHONNOUSERSITE: "1"
 dependencies:
   - python=3.9.20
   - pip
   - pip:
-    # PyTorch (CUDA 12.4 wheels) — pin exact CUDA build to match training environment
+    # PyTorch (CUDA 12.4 wheels) — pin exact CUDA build to match training environment.
+    # The wheels bundle the CUDA runtime; a GPU host only needs an NVIDIA driver.
+    # They also run on CPU-only machines (--device cpu). Linux x86_64 only.
     - --extra-index-url https://download.pytorch.org/whl/cu124
     - torch==2.4.1+cu124
-    - torchvision==0.19.1+cu124
-    - torchaudio==2.4.1+cu124
- 
+
     # nnUNet
     - nnunetv2==2.5.1
- 
-    # Key scientific libraries — locked to same major version to avoid
-    # breaking API changes across major releases
-    - numpy~=1.26          # <2.0
-    - nibabel~=5.3         # <6.0
-    - scipy~=1.13          # <2.0
-    - simpleitk~=2.4       # <3.0
-    - scikit-image~=0.24   # <1.0
-    - scikit-learn~=1.5    # <2.0
-    - pandas~=2.2          # <3.0
-    - blosc2
-    - acvl-utils==0.2
-    - fft-conv-pytorch==1.2.0
 
-# trained on cuda 12.4, below is the exact environment used for training. 
+    # Pinned to the versions of the lab's working fastscrubber_env (the one
+    # IronFist runs in production). Unpinned, pip now resolves dicom2nifti to a
+    # release whose python-gdcm has no Python 3.9 wheel, and the build fails.
+    - acvl-utils==0.2
+    - dynamic-network-architectures==0.3.1
+    - batchgenerators==0.25
+    - batchgeneratorsv2==0.2.1
+    - dicom2nifti==2.5.0
+    - python-gdcm==3.0.24.1
+    - pydicom==2.4.4
+    - fft-conv-pytorch==1.2.0
+    - numpy==1.26.4
+    - nibabel==5.3.0
+    - scipy==1.13.1
+    - simpleitk==2.4.0
+    - scikit-image==0.24.0
+    - scikit-learn==1.5.2
+    - pandas==2.3.3
+    - matplotlib==3.9.2
+    - seaborn==0.13.2
+    - imagecodecs==2024.9.22
+    - tifffile==2024.8.30
+    - einops==0.8.0
+    - yacs==0.1.8
+    - graphviz==0.20.3
+    - tqdm==4.66.5
+
+# trained on cuda 12.4, below is the exact environment used for training.
 # The above is a pared down version with only the necessary dependencies for inference.
   # - pip:
   #   - nvidia-cublas-cu12==12.4.2.65

@@ -1,40 +1,41 @@
-# Base: Miniconda with CUDA 12.4 (matches training environment)
-FROM continuumio/miniconda3:latest
+# fast_scrubber: nnUNetv2 brain mask inference on CPU or a CUDA 12.4 GPU.
+#
+#   docker build -t fast_scrubber .
+#   docker run --rm --gpus all -v /data:/data fast_scrubber /data/orig.mgz /data/mask.nii.gz
+#
+# Inside the container the tool is on PATH: fastscrubber.py INPUT OUTPUT
+#
+# Base: Miniforge (conda-forge only, so no Anaconda Terms-of-Service prompt).
+# The torch wheels in environment.yml bundle the CUDA 12.4 runtime; the host
+# only needs an NVIDIA driver, and no CUDA toolkit is installed here.
+FROM condaforge/miniforge3:26.5.3-0
 
 LABEL maintainer="fast_scrubber"
 LABEL description="nnUNetv2-based 7T MRI segmentation tool"
 
-# System deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        git \
-        wget \
-        ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install CUDA 12.4 runtime (required by torch+cu124)
-RUN conda install -y -c nvidia/label/cuda-12.4.0 cuda-toolkit && \
-    conda clean -afy
+ENV PIP_NO_CACHE_DIR=1
 
 # Create conda environment from yml
-COPY environment.yml .
-RUN conda env create -f environment.yml && conda clean -afy
+COPY environment.yml /tmp/environment.yml
+RUN mamba env create -f /tmp/environment.yml && \
+    mamba clean -afy && \
+    rm /tmp/environment.yml
 
-# Make the conda env the default shell for subsequent RUN commands
-SHELL ["conda", "run", "-n", "fast_scrubber_env", "/bin/bash", "-c"]
+# Use the env without activation (also what Apptainer inherits). PYTHONNOUSERSITE
+# keeps packages in a bind-mounted ~/.local from shadowing the env's own.
+ENV PATH=/opt/fast_scrubber:/opt/conda/envs/fastscrubber_env/bin:${PATH} \
+    PYTHONNOUSERSITE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /opt/fast_scrubber
+
+# Download model weights from OSF at build time (SHA-256 checked)
+# OSF project: https://osf.io/x95g7
+COPY download_weights.py .
+RUN python download_weights.py --dest /opt/fast_scrubber/weights
 
 # Copy tool
-WORKDIR /opt/fast_scrubber
 COPY fastscrubber.py .
+RUN fastscrubber.py --help > /dev/null
 
-# Download model weights from OSF at build time
-# OSF project: https://osf.io/x95g7
-RUN pip install osfclient && \
-    osf -p x95g7 clone /tmp/osf_weights && \
-    mkdir -p /opt/fast_scrubber/weights && \
-    cp -r /tmp/osf_weights/x95g7/osfstorage/nnUNet_results/Dataset500_Segmentation \
-          /opt/fast_scrubber/weights/ && \
-    rm -rf /tmp/osf_weights
-
-# Entrypoint — activate conda env and run the tool
-ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "fast_scrubber_env", \
-            "python", "/opt/fast_scrubber/fastscrubber.py"]
+ENTRYPOINT ["python", "/opt/fast_scrubber/fastscrubber.py"]

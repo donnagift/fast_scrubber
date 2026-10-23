@@ -1,0 +1,189 @@
+name: CI
+
+# Builds the conda environment, the Docker image and the Apptainer image on
+# GitHub-hosted runners, and runs fastscrubber.py through each of them on a
+# small image made from a public BIDS T1w (tests/make_fixture.py). The full
+# real-data test runs on the lab runner: see bids-ci.yml.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md", "images/**", "CITATION.cff", "LICENSE"]
+  pull_request:
+    paths-ignore: ["**/*.md", "images/**", "CITATION.cff", "LICENSE"]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Inference settings for the smoke runs: one fold, no mirroring, 4 CPUs. No
+  # --device: the default 'auto' must fall back to the CPU on these runners.
+  FAST_FLAGS: --folds 0 --disable_tta --num_cpus 4
+  # The fixture is a block cropped from inside the head, so most of it is brain.
+  CHECK_FLAGS: --min_fraction 0.2 --max_fraction 1.0
+
+jobs:
+  environment:
+    name: Conda environment
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      PYTHONNOUSERSITE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create environment.yml
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+
+      - name: Cache model weights (fold 0)
+        uses: actions/cache@v4
+        with:
+          path: weights
+          key: weights-fold0-${{ hashFiles('download_weights.py') }}
+
+      - name: Download model weights (fold 0)
+        run: python download_weights.py --folds 0
+
+      - name: CLI checks
+        run: |
+          set -euo pipefail
+          python fastscrubber.py --help
+          # Clear errors instead of tracebacks
+          expect_error() {
+            local message=$1; shift
+            if python fastscrubber.py "$@" > err.txt 2>&1; then
+              echo "expected a failure: $*"; exit 1
+            fi
+            cat err.txt
+            grep -q "$message" err.txt
+          }
+          touch dummy.mgz
+          expect_error "Input file not found" missing.mgz out/mask.nii.gz
+          expect_error "Unsupported output format" dummy.mgz out/mask.txt
+          expect_error "PyTorch sees no CUDA GPU" dummy.mgz out/mask.nii.gz --device cuda --folds 0
+          expect_error "Model weights not found" dummy.mgz out/mask.nii.gz --weights /nonexistent
+
+      - name: Build test image
+        run: python tests/make_fixture.py --out fixture
+
+      - name: Run fastscrubber.py
+        run: |
+          set -euo pipefail
+          mkdir -p out/env
+          python fastscrubber.py fixture/orig.mgz out/env/mask.nii.gz $FAST_FLAGS --save_probabilities \
+            2>&1 | tee out/env/log.txt
+          grep -q "No GPU visible" out/env/log.txt
+
+      - name: Run from Python (scrub, .mgz output)
+        run: |
+          python -c "from fastscrubber import scrub; scrub('fixture/orig.mgz', 'out/env/mask.mgz', \
+            device='cpu', folds=['0'], disable_tta=True, num_cpus=4)"
+
+      - name: Check output
+        run: |
+          set -euo pipefail
+          python tests/check_mask.py --input fixture/orig.mgz \
+            --mask out/env/mask.nii.gz $CHECK_FLAGS --json out/env/check.json
+          python tests/check_mask.py --input fixture/orig.mgz --mask out/env/mask.mgz \
+            --reference out/env/mask.nii.gz --min_dice 1.0 $CHECK_FLAGS
+          test -s out/env/mask_probabilities.npz
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: environment-output
+          path: out/
+          retention-days: 7
+
+  containers:
+    name: Docker and Apptainer images
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      # The image is ~8 GB and its SIF conversion needs about as much again.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+          docker system prune -af
+          df -h /
+
+      - name: Build Docker image
+        run: docker build -t fast_scrubber:ci .
+
+      - name: Build test image
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" \
+            --entrypoint python fast_scrubber:ci tests/make_fixture.py --out fixture
+
+      - name: Run with Docker
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:$PWD" fast_scrubber:ci \
+            "$PWD/fixture/orig.mgz" "$PWD/out/docker/mask.nii.gz" $FAST_FLAGS
+
+      - name: Run inside the Docker container (fastscrubber.py on PATH, .mgz output)
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:$PWD" --entrypoint fastscrubber.py fast_scrubber:ci \
+            "$PWD/fixture/orig.mgz" "$PWD/out/docker_path/mask.mgz" $FAST_FLAGS
+
+      - name: Check Docker outputs
+        run: |
+          set -euo pipefail
+          check() {
+            docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" --entrypoint python fast_scrubber:ci \
+              tests/check_mask.py --input fixture/orig.mgz $CHECK_FLAGS "$@"
+          }
+          check --mask out/docker/mask.nii.gz --json out/docker/check.json
+          check --mask out/docker_path/mask.mgz --reference out/docker/mask.nii.gz --min_dice 1.0
+
+      - uses: eWaterCycle/setup-apptainer@v2
+        with:
+          apptainer-version: 1.3.6
+
+      - name: Build Apptainer image
+        run: |
+          apptainer build fast_scrubber.sif docker-daemon://fast_scrubber:ci
+          docker rmi fast_scrubber:ci
+          df -h /
+
+      - name: Run with Apptainer
+        run: |
+          apptainer run --cleanenv -B "$PWD" fast_scrubber.sif \
+            "$PWD/fixture/orig.mgz" "$PWD/out/apptainer/mask.nii.gz" $FAST_FLAGS
+
+      - name: Run with Apptainer (--containall)
+        run: |
+          mkdir -p scratch
+          apptainer run --containall -B "$PWD" -B "$PWD/scratch:/tmp" fast_scrubber.sif \
+            "$PWD/fixture/orig.mgz" "$PWD/out/apptainer_containall/mask.nii.gz" $FAST_FLAGS
+
+      - name: Run inside the Apptainer container (fastscrubber.py on PATH)
+        run: |
+          apptainer exec --cleanenv -B "$PWD" fast_scrubber.sif fastscrubber.py \
+            "$PWD/fixture/orig.mgz" "$PWD/out/apptainer_exec/mask.nii.gz" $FAST_FLAGS
+
+      - name: Check Apptainer outputs (and agreement with Docker)
+        run: |
+          set -euo pipefail
+          for run in apptainer apptainer_containall apptainer_exec; do
+            apptainer exec --cleanenv -B "$PWD" --pwd "$PWD" fast_scrubber.sif python tests/check_mask.py \
+              --input fixture/orig.mgz --mask out/$run/mask.nii.gz \
+              --reference out/docker/mask.nii.gz --min_dice 0.999 \
+              $CHECK_FLAGS --json out/$run/check.json
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-output
+          path: out/
+          retention-days: 7

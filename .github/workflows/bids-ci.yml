@@ -1,0 +1,94 @@
+name: BIDS-CI
+
+# Real-data test on the lab's BIDS_CI dataset (/data/mica3/BIDS_CI/rawdata):
+# builds the conda environment, the Docker image and the Singularity/Apptainer
+# image on the lab runner, then runs tests/bids_ci_test.sh, which conforms each
+# BIDS T1w with FastSurfer 2.4.2, runs fastscrubber.py through all three
+# runtimes, validates every mask and checks the runtimes agree.
+#
+# Needs a self-hosted runner with the "bids-ci" label that can read BIDS_CI and
+# the FastSurfer image, and has Docker and Singularity/Apptainer - the lab CI
+# host bb-compxg-01, which runs micapipe's sample test. It runs on demand
+# (Actions > BIDS-CI > Run workflow) or on pull requests labelled "ci:bids".
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "fast = fold 0 without TTA (~1 h); full = 5 folds + TTA on CPU (many hours)"
+        type: choice
+        options: [fast, full]
+        default: fast
+      device:
+        description: "Inference device"
+        type: choice
+        options: [cpu, cuda]
+        default: cpu
+  pull_request:
+    types: [labeled, synchronize]
+
+concurrency:
+  group: bids-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bids-ci:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'ci:bids')
+    runs-on: [self-hosted, Linux, X64, bids-ci]
+    timeout-minutes: 900
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      CI_ROOT: /export03/data/action-runner/fast_scrubber
+      DOCKER_IMAGE: fast_scrubber:ci-${{ github.run_id }}
+      SIF: /export03/data/action-runner/fast_scrubber/sif/fast_scrubber_ci_${{ github.run_id }}.sif
+      PYTHONNOUSERSITE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create environment.yml
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          micromamba-root-path: ${{ env.CI_ROOT }}/micromamba
+          cache-environment: false
+
+      - name: Download model weights (kept between runs)
+        run: python download_weights.py --dest "$CI_ROOT/weights"
+
+      - name: Build Docker image
+        run: docker build -t "$DOCKER_IMAGE" .
+
+      - name: Build Singularity/Apptainer image
+        run: |
+          set -euo pipefail
+          mkdir -p "$CI_ROOT/sif" "$CI_ROOT/tmp"
+          export SINGULARITY_TMPDIR="$CI_ROOT/tmp" APPTAINER_TMPDIR="$CI_ROOT/tmp"
+          builder=$(command -v apptainer || command -v singularity)
+          "$builder" build --force "$SIF" "docker-daemon://$DOCKER_IMAGE"
+
+      - name: Run BIDS-CI test
+        run: |
+          FASTSCRUBBER_PYTHON="$(command -v python)" \
+          FASTSCRUBBER_WEIGHTS="$CI_ROOT/weights/fast_scrubber/nnUNet_results" \
+          FASTSCRUBBER_DOCKER="$DOCKER_IMAGE" \
+          FASTSCRUBBER_SIF="$SIF" \
+          MODE="${{ inputs.mode || 'fast' }}" \
+          DEVICE="${{ inputs.device || 'cpu' }}" \
+          OUTDIR="$CI_ROOT/runs/${{ github.run_id }}" \
+          ./tests/bids_ci_test.sh
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bids-ci-checks
+          path: ${{ env.CI_ROOT }}/runs/${{ github.run_id }}/**/*.json
+          retention-days: 30
+
+      - name: Clean up
+        if: always()
+        run: |
+          docker rmi "$DOCKER_IMAGE" 2>/dev/null || true
+          rm -f "$SIF"
+          rm -rf "$CI_ROOT/runs/${{ github.run_id }}"
