@@ -49,7 +49,7 @@ A docker version is currently under preparation. In the meantime, you can run th
 2. Create the Conda enviroment.
    
 ```
-conda env create -f environment.yml
+conda env create -f fastscrubber_env.yml -n fastscrubber_env
 
 ```
    
@@ -74,8 +74,8 @@ FastSurfer v2.4.2 must be run before executing this pipeline.See the FastSurfer 
 2. Predict masks using fast_scrubber
 
 ```
-   conda activate fast_scrubber_env
-   nnUNetv2_predict -i /path/to/fastscrubber/nnunet_raw/imagesTs/ -o /path/to/fastscrubber//nnUNet_results/Dataset500_Segmentation/nnUNetTrainer__nnUNetPlans__3d_fullres/inference/ -d 500 -c 3d_fullres --save_probabilities
+conda activate fastscrubber_env
+nnUNetv2_predict -i /path/to/fastscrubber/nnunet_raw/imagesTs/ -o /path/to/fastscrubber//nnUNet_results/Dataset500_Segmentation/nnUNetTrainer__nnUNetPlans__3d_fullres/inference/ -d 500 -c 3d_fullres --save_probabilities
 ```
 
 4. Apply the fast_scrubber-generated mask using `run_fastscrubber.sh`. This scripts internally calls FastSurfer v2.4.2 `recon-surf.sh`, so FastSurfer must already be installed and configured. 
