@@ -167,7 +167,7 @@ def stage_input(t1w: Path, dest: Path) -> None:
 
 
 def predict(staged_input: Path, output_truncated: Path, model_dir: Path, *, device: str,
-            folds: list, disable_tta: bool, save_probabilities: bool, num_cpus: int) -> None:
+            folds: list, tta: bool, save_probabilities: bool, num_cpus: int) -> None:
     """Run nnUNetv2 inference with the same settings as nnUNetv2_predict.
 
     nnUNetv2_predict preprocesses and exports in worker processes and hands the
@@ -192,7 +192,7 @@ def predict(staged_input: Path, output_truncated: Path, model_dir: Path, *, devi
     predictor = nnunet_predict.nnUNetPredictor(
         tile_step_size=0.5,
         use_gaussian=True,
-        use_mirroring=not disable_tta,
+        use_mirroring=tta,
         perform_everything_on_device=True,
         device=torch.device(device),
         verbose=False,
@@ -273,7 +273,7 @@ def write_mask(prediction: Path, input_image: Path, output: Path) -> None:
 # --- Main function -----------------------------------------------------------
 
 def scrub(input_image, output, *, device: str = "auto", folds=ALL_FOLDS,
-          disable_tta: bool = False, save_probabilities: bool = False,
+          tta: bool = False, save_probabilities: bool = False,
           num_cpus: int = None, weights=None) -> Path:
     """Predict the FastScrubber brain mask of one image and write it to ``output``.
 
@@ -288,7 +288,8 @@ def scrub(input_image, output, *, device: str = "auto", folds=ALL_FOLDS,
     device : 'auto', 'cuda', 'cpu' or 'mps'
         'auto' (default) runs on a visible GPU, else on the CPU.
     folds : folds of the 5-fold ensemble to use (default: all).
-    disable_tta : skip test-time mirroring (~8x faster, slightly less accurate).
+    tta : also predict on mirrored copies and average them (test-time
+        augmentation): up to 8x slower, slightly more accurate. Off by default.
     num_cpus : CPU threads for CPU inference (default: available CPUs - 2).
     weights : nnUNet_results directory, or the model folder itself (default:
         $FASTSCRUBBER_WEIGHTS, else weights/ next to this file).
@@ -353,11 +354,11 @@ def scrub(input_image, output, *, device: str = "auto", folds=ALL_FOLDS,
 
         print(
             f"[INFO] Predicting with {model_dir} (folds {' '.join(folds)}, "
-            f"device {device}, TTA {'off' if disable_tta else 'on'})",
+            f"device {device}, TTA {'on' if tta else 'off'})",
             flush=True,
         )
         predict(staged_input, inference_dir / "case", model_dir, device=device, folds=folds,
-                disable_tta=disable_tta, save_probabilities=save_probabilities,
+                tta=tta, save_probabilities=save_probabilities,
                 num_cpus=num_cpus)
 
         write_mask(inference_dir / "case.nii.gz", staged_input, output)
@@ -413,11 +414,20 @@ def main() -> None:
         default=ALL_FOLDS,
         help="Folds to use for prediction (default: all 5).",
     )
-    parser.add_argument(
-        "--disable_tta",
+    mirroring = parser.add_mutually_exclusive_group()
+    mirroring.add_argument(
+        "--tta",
         action="store_true",
         default=False,
-        help="Disable test-time mirroring: ~8x faster, slightly less accurate.",
+        help=(
+            "Also predict on mirrored copies and average them (test-time augmentation): "
+            "up to 8x slower, slightly more accurate. Off by default."
+        ),
+    )
+    mirroring.add_argument(
+        "--disable_tta",
+        action="store_true",
+        help="Accepted for older scripts; TTA is already off unless --tta is given.",
     )
     parser.add_argument(
         "--save_probabilities",
@@ -442,7 +452,7 @@ def main() -> None:
             args.output,
             device=args.device,
             folds=args.folds,
-            disable_tta=args.disable_tta,
+            tta=args.tta,
             save_probabilities=args.save_probabilities,
             num_cpus=args.num_cpus,
             weights=args.weights,

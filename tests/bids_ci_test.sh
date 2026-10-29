@@ -48,8 +48,8 @@ container_cmd=$(command -v apptainer || command -v singularity || true)
 
 # Inference flags
 case "${mode}" in
-  fast) flags=(--folds 0 --disable_tta) ;;
-  full) flags=() ;;
+  fast) flags=(--folds 0) ;;
+  full) flags=(--tta) ;;
   *) echo "[ERROR] MODE must be 'fast' or 'full', got '${mode}'"; exit 1 ;;
 esac
 flags+=(--device "${device}")

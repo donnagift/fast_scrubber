@@ -113,15 +113,23 @@ scrub("orig.mgz", "sub-01_ses-01.nii.gz", device="cpu", num_cpus=8)
 | `--device` | `auto` | `auto` (a GPU if one is visible, else the CPU), `cuda`, `cpu` or `mps` (Apple Silicon) |
 | `--num_cpus` | available CPUs − 2 | CPU threads, for CPU inference |
 | `--folds` | `0 1 2 3 4` | Folds of the 5-fold ensemble to use |
-| `--disable_tta` | off | Skip test-time mirroring: ~8× faster, slightly less accurate |
+| `--tta` | off | Also predict on mirrored copies and average them (test-time augmentation): up to 8× slower, slightly more accurate. `--disable_tta` is still accepted and changes nothing |
 | `--save_probabilities` | off | Also save the softmax maps, to `<OUTPUT without extension>_probabilities.npz` |
 | `--weights` | `$FASTSCRUBBER_WEIGHTS`, else `weights/fast_scrubber/nnUNet_results` | Model location |
 
-   Runtime for a 0.8 mm 3T `orig.mgz` with the default full ensemble (5 folds with test-time mirroring):
-   - **GPU:** 17 min on an RTX 2060 SUPER, peaking at 3 GB of GPU memory.
-   - **CPU:** many hours (8 h 51 min with nnUNetv2_predict's 8 threads).
+   By default the tool runs all 5 folds without test-time mirroring. Mirroring (`--tta`) costs up to 8× the time for a very small gain:
+   - On 200 7T cross-validation cases scored against manual masks, Dice went from 0.9906 without mirroring to 0.9909 with it.
+   - On 10 held-out 7T sessions, the masks made with and without mirroring agreed at Dice 0.9988–0.9992. They differed only within 1 mm of the brain boundary.
 
-   For quick checks, use `--folds 0 --disable_tta`, which is ~40× less work: ~9 min on 32 CPU threads.
+   Runtimes:
+
+   | Image | Default (5 folds) | With `--tta` |
+   |---|---|---|
+   | 0.8 mm 3T, 8 CPU threads | 64–68 min | 8 h 51 min |
+   | 0.8 mm 3T, RTX 2060 SUPER GPU | not measured | 17 min, 3 GB of GPU memory |
+   | 0.5 mm 7T, RTX 2060 SUPER GPU | 2.4 min | 13.5 min |
+
+   For quick checks, use `--folds 0`, a fifth of the default work: ~9 min for a 0.8 mm 3T image on 32 CPU threads.
 
    Notes:
    - Docker runs as root unless given `--user "$(id -u):$(id -g)"`, so outputs would otherwise be owned by root.

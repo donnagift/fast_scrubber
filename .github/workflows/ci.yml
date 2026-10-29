@@ -20,7 +20,7 @@ concurrency:
 env:
   # Inference settings for the smoke runs: one fold, no mirroring, 4 CPUs. No
   # --device: the default 'auto' must fall back to the CPU on these runners.
-  FAST_FLAGS: --folds 0 --disable_tta --num_cpus 4
+  FAST_FLAGS: --folds 0 --num_cpus 4
   # The fixture is a block cropped from inside the head, so most of it is brain.
   CHECK_FLAGS: --min_fraction 0.2 --max_fraction 1.0
 
@@ -81,11 +81,12 @@ jobs:
           python fastscrubber.py fixture/orig.mgz out/env/mask.nii.gz $FAST_FLAGS --save_probabilities \
             2>&1 | tee out/env/log.txt
           grep -q "No GPU visible" out/env/log.txt
+          grep -q "TTA off" out/env/log.txt
 
       - name: Run from Python (scrub, .mgz output)
         run: |
           python -c "from fastscrubber import scrub; scrub('fixture/orig.mgz', 'out/env/mask.mgz', \
-            device='cpu', folds=['0'], disable_tta=True, num_cpus=4)"
+            device='cpu', folds=['0'], num_cpus=4)"
 
       - name: Check output
         run: |
