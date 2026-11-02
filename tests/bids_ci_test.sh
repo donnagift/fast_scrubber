@@ -9,7 +9,7 @@
 # voxel for voxel, so no full FastSurfer run is needed.
 #
 # Configure with environment variables; any runtime left empty is skipped:
-#   FASTSCRUBBER_PYTHON   python of an env built from environment.yml
+#   FASTSCRUBBER_PYTHON   python of an env built from fastscrubber_env.yml
 #   FASTSCRUBBER_WEIGHTS  nnUNet_results directory for that env
 #   FASTSCRUBBER_DOCKER   Docker image, e.g. fast_scrubber:ci
 #   FASTSCRUBBER_SIF      Apptainer/Singularity image, e.g. fast_scrubber.sif

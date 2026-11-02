@@ -44,7 +44,7 @@ fast_scrubber runs from a conda environment, a Docker image or an Apptainer/Sing
 ### Option 1: Conda environment
 
 ```bash
-PYTHONNOUSERSITE=1 conda env create -f environment.yml
+PYTHONNOUSERSITE=1 conda env create -f fastscrubber_env.yml
 conda activate fastscrubber_env
 python download_weights.py
 ```

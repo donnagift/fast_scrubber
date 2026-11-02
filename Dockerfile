@@ -6,7 +6,7 @@
 # Inside the container the tool is on PATH: fastscrubber.py INPUT OUTPUT
 #
 # Base: Miniforge (conda-forge only, so no Anaconda Terms-of-Service prompt).
-# The torch wheels in environment.yml bundle the CUDA 12.4 runtime; the host
+# The torch wheels in fastscrubber_env.yml bundle the CUDA 12.4 runtime; the host
 # only needs an NVIDIA driver, and no CUDA toolkit is installed here.
 FROM condaforge/miniforge3:26.5.3-0
 
@@ -16,10 +16,10 @@ LABEL description="nnUNetv2-based 7T MRI segmentation tool"
 ENV PIP_NO_CACHE_DIR=1
 
 # Create conda environment from yml
-COPY environment.yml /tmp/environment.yml
-RUN mamba env create -f /tmp/environment.yml && \
+COPY fastscrubber_env.yml /tmp/fastscrubber_env.yml
+RUN mamba env create -f /tmp/fastscrubber_env.yml && \
     mamba clean -afy && \
-    rm /tmp/environment.yml
+    rm /tmp/fastscrubber_env.yml
 
 # Use the env without activation (also what Apptainer inherits). PYTHONNOUSERSITE
 # keeps packages in a bind-mounted ~/.local from shadowing the env's own.

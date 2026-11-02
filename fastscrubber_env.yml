@@ -6,7 +6,7 @@ channels:
   - nodefaults
 # Keep packages in ~/.local from shadowing the env's own once it is activated.
 # Create the env with the same setting, or pip skips anything ~/.local holds:
-#   PYTHONNOUSERSITE=1 conda env create -f environment.yml
+#   PYTHONNOUSERSITE=1 conda env create -f fastscrubber_env.yml
 variables:
   PYTHONNOUSERSITE: "1"
 dependencies:

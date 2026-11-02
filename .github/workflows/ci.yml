@@ -37,10 +37,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create environment.yml
+      - name: Create fastscrubber_env.yml
         uses: mamba-org/setup-micromamba@v2
         with:
-          environment-file: environment.yml
+          environment-file: fastscrubber_env.yml
           cache-environment: true
 
       - name: Cache model weights (fold 0)
