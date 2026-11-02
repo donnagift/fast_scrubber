@@ -229,7 +229,7 @@ nnUNetv2_find_best_configuration 500 -c 2d 3d_lowres 3_fullres
 ```
 
 ## Citation
-Cabalo DG, Rodriguez R, DeKraker J, Kebets V & Bernhardt B.fast_scrubber. Retrieved from osf.io/x95g7
+Cabalo DG, Rodriguez R, DeKraker J, Yang, E, Kebets V & Bernhardt B.fast_scrubber. Retrieved from osf.io/x95g7
 
 For the segmentation method used: 
 Isensee, F., Jaeger, P. F., Kohl, S. A., Petersen, J., & Maier-Hein, K. H. (2021). nnU-Net: a self-configuring 
