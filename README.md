@@ -7,7 +7,7 @@
 
 [![Version](https://img.shields.io/github/v/tag/donnagift/fast_scrubber)](https://github.com/donnagift/fast_scrubber)
 [![Docker Image Version](https://img.shields.io/docker/v/micalab/fast_scrubber?color=blue&label=docker%20version)](https://hub.docker.com/r/micalab/fast_scrubber)
-[![Docker Pulls](https://img.shields.io/docker/pulls/micalab/fast_scrubber)](https://hub.docker.com/r/micalab/fast_scrubber)
+[![Docker Pulls](https://img.shields.io/docker/pulls/micalab/fast_scrubber.svg?label=pulls)](https://hub.docker.com/r/micalab/fast_scrubber)
 [![GitHub issues](https://img.shields.io/github/issues/donnagift/fast_scrubber?color=brightgreen)](https://github.com/donnagift/fast_scrubber/issues)
 [![GitHub stars](https://img.shields.io/github/stars/donnagift/fast_scrubber.svg?style=flat&label=%E2%AD%90%EF%B8%8F%20stars&color=brightgreen)](https://github.com/donnagift/fast_scrubber/stargazers)
 
