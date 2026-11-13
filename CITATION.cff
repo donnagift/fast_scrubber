@@ -4,6 +4,10 @@ cff-version: 1.2.0
 
 title: fast_scrubber
 
+version: 1.0.0
+
+date-released: "2026-11-13"
+
 license: GPL-3.0
 
 type: "software"
@@ -41,6 +45,9 @@ authors:
 
   - family-names: DeKraker
     given-names: Jordan
+
+  - family-names: Yang
+    given-names: Enning
 
   - family-names: Kebets
     given-names: Valeria
